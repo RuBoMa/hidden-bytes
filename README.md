@@ -21,16 +21,17 @@
 
 Hidden-Bytes demonstrates two defensive-research concepts through proof-of-concept scripts:
 
-- **`evasion_builder.py`** — Encrypts a compiled binary with Fernet (AES-128-CBC) and optionally inflates file size with null-byte padding to change static indicators (hash, size).
+- **`evasion_builder.py`** — XOR-encrypts a compiled binary, embeds it in a compiled C loader with an execution delay, and optionally inflates file size with null-byte padding to change static indicators (hash, size).
 - **`polymorph_gen.py`** — Generates a unique binary on every build by injecting random junk C++ functions into a reverse-shell source and compiling it. Each output has a different hash while keeping the same core functionality.
 - **`payload.cpp`** — Example reverse-shell C++ source produced by the polymorphic generator.
 - **`safe_pad.py`** — Appends 101 MB of null bytes to a compiled binary to exceed sandbox file-size limits.
+- **`simple_program.c`** — Simple "Hello, World!" C program used as the test binary for the evasion builder.
 
 ---
 
 ## Prerequisites
 
-- **Python 3.8+** with `pip install cryptography`
+- **Python 3.8+**
 - **Visual Studio 2022** with the "Desktop development with C++" workload (for `polymorph_gen.py`)
 - **Isolated VM environment** — Windows target VM + attacker/listener host on a private virtual network, no internet
 - **Netcat** or similar listener for reverse-shell testing (`nc -lvnp 4444`)
@@ -45,9 +46,14 @@ This script transforms a compiled binary so its on-disk representation completel
 
 **How it works:**
 
-1. **Fernet Encryption** — Reads the target binary and encrypts it with a randomly generated Fernet key (AES-128-CBC + HMAC-SHA256). A unique key is generated per run, so encrypting the same file twice produces entirely different ciphertext.
-2. **File-Size Inflation** — Optionally appends N megabytes of null bytes (`\x00`) to the output. This changes the file size/hash and can push it past sandbox upload limits (~100 MB).
-3. **Result** — The output is a file with completely different bytes, a different hash, and optionally a much larger size than the original.
+1. **XOR Encryption** — Reads the target binary and encrypts it with a randomly generated 32-byte XOR key. A unique key is generated per run, so encrypting the same file twice produces entirely different ciphertext.
+2. **C Loader Generation** — Generates a C source file that embeds the encrypted payload as a byte array. At runtime the loader:
+   - Sleeps for the configured delay (default 101 seconds) to outlast sandbox analysis windows
+   - Decrypts the payload in memory using the embedded XOR key
+   - Writes the decrypted binary to a temp file, executes it, waits for it to finish, then deletes it
+3. **Compilation** — Compiles the loader with the Visual Studio `cl` compiler into a standalone `.exe`.
+4. **File-Size Inflation** — Optionally appends N megabytes of null bytes to the compiled output, pushing it past sandbox upload limits (~100 MB).
+5. **Result** — A fully working executable that decrypts and runs the original binary at runtime, with a completely different hash and optionally inflated size.
 
 **CLI arguments:**
 - `--encrypt <file>` — target binary to encrypt
@@ -84,28 +90,52 @@ This script creates a **unique Windows binary on every run** while the core func
 
 ### Evasion Builder
 
+#### Step 1 — Prepare a Simple Binary
+
+Create a simple program that prints "Hello, World!" — the file `simple_program.c` is included in this repo:
+
+```c
+#include <stdio.h>
+
+int main() {
+    printf("Hello, World!\n");
+    return 0;
+}
+```
+
+Compile it into `simple_program.exe`:
+
 ```bash
-# 1. Install dependencies
-pip install cryptography
+cl simple_program.c /Fe:simple_program.exe
+```
 
-# 2. Encrypt a binary (basic)
-python evasion_builder.py --encrypt polymorphic_shell.exe --output obfuscated.exe
+#### Step 2 — Run the Evasion Program
 
-# 3. Encrypt with 101 MB padding
-python evasion_builder.py --encrypt polymorphic_shell.exe --output obfuscated.exe --add-size 101
+Encrypt the binary with a 101-second delay and 101 MB size inflation:
 
-# 4. Verify different hash
-Get-FileHash .\polymorphic_shell.exe -Algorithm SHA256
-Get-FileHash .\obfuscated.exe -Algorithm SHA256
+```bash
+python evasion_builder.py --encrypt simple_program.exe --output evaded_program.exe --add-size 101 --delay 101
 ```
 
 Expected output:
 ```
-[*] Encrypting polymorphic_shell.exe...
+[*] Encrypting simple_program.exe...
+[*] Compiling loader...
 [*] Inflating file by 101MB...
-[+] Success! obfuscated.exe generated.
-[+] Final Size: 101.05 MB
+[+] Success! evaded_program.exe generated.
+[+] Final Size: 101.28 MB
 ```
+
+#### Step 3 — Verify the Result
+
+Compare hashes to confirm the output is completely different from the original:
+
+```powershell
+Get-FileHash .\simple_program.exe -Algorithm SHA256
+Get-FileHash .\evaded_program.exe -Algorithm SHA256
+```
+
+The hashes will differ entirely. Running the evasion builder again on the same input produces yet another different hash because a new random XOR key is generated each time.
 
 ### Polymorphic Generator
 
@@ -146,16 +176,15 @@ Get-FileHash .\polymorphic_shell.exe | Select-Object Hash
 
 Windows PE files consist of headers, sections (`.text`, `.data`, `.rdata`), and optional overlay data. The PE loader only maps declared sections — when `safe_pad.py` appends 101 MB of null bytes, it sits in the overlay region, changing the file hash/size on disk without affecting execution.
 
-### Encryption — Fernet
+### Encryption — XOR
 
 | Property | Detail |
 |---|---|
-| Algorithm | AES-128-CBC with HMAC-SHA256 |
-| Key | 128-bit, randomly generated per run |
-| IV | Random per encryption call |
-| Output | Version ‖ Timestamp ‖ IV ‖ Ciphertext ‖ HMAC |
+| Algorithm | XOR with multi-byte key |
+| Key | 32 random bytes (1–255), generated per run |
+| Output | Each byte of the original XORed with the corresponding key byte (cycling) |
 
-The random IV + fresh key means every encryption produces unique ciphertext with zero overlap. Encrypted output has near-maximum entropy (~8.0 bits/byte), which defenders can flag via entropy analysis.
+A fresh random key per run means every encryption produces unique ciphertext. The encrypted payload is embedded directly in the compiled C loader as a byte array, making the resulting binary completely different from the original.
 
 ### Stealth Techniques Summary
 
@@ -163,7 +192,7 @@ The random IV + fresh key means every encryption produces unique ciphertext with
 |---|---|---|
 | **101s Sleep delay** | Outlasts typical 60–90s sandbox windows | Hook `Sleep`/`NtDelayExecution` to fast-forward; flag large sleep calls |
 | **101 MB null padding** | Exceeds sandbox upload limits; changes hash/size | Strip trailing nulls; use section-aware analysis |
-| **Fernet encryption** | Destroys all original byte patterns | Entropy scanning; behavioral analysis |
+| **XOR encryption** | Destroys all original byte patterns | Entropy scanning; behavioral analysis |
 | **Polymorphic junk code** | Unique hash/layout per build | Behavioral detection; ML classifiers on API call sequences |
 
 ### Reverse Shell Flow
